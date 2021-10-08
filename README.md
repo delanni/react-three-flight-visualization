@@ -274,4 +274,82 @@ Let's limit the number of flights rendered, and use a react-like array expansion
 
 And there you have it! You now have a bunch of chartered flights going from cities to other cities!
 
+### Step 6 - Cities
 
+A quite easy task now, with all our knowledge to visualize all the cities for the airports we have.
+Let's create an object in our `flightsScene` -> `Airport.tsx`
+
+```typescript jsx
+// This function component should only take an IAirport object and render it on the map
+// Using the same bounding box rotation method, we can draw a simple square/box to any geo-location easily
+    <group ref={rotationBoxRef} quaternion={rotationQuaternion}>
+      <Box
+        size={[0.05, 0.05, 0.05]}
+        color={'hotpink'}
+        position={[0, EARTH_SURFACE_ELEVATION, 0]}
+      />
+    </group>
+```
+
+On this simple addition, we can demonstrate how simple mouse-interaction is to set up.
+If you create a piece of state to hold the hover-state, then we can conditionally change the color of the box:
+
+```typescript jsx
+    const [hover, setHover] = useState(false)
+    const rotationQuaternion = rotationQuaternionForCoordinates(props.airport.latitude, props.airport.longitude);
+// ...
+   return (
+    <group ref={rotationBoxRef} quaternion={rotationQuaternion}>
+      <Box
+        onPointerOver={() => setHover(true)}
+        onPointerOut={() => setHover(false)}
+        size={[0.05, 0.05, 0.05]}
+        color={hover ? 'hotpink' : 'red'}
+        position={[0, EARTH_SURFACE_ELEVATION, 0]}
+      />
+    </group>
+   )
+```
+
+And while we're at it, let's showcase HTML on the canvas too!
+Three.js can project the world's coordinates on the screen for us, and move HTML dom elements on top of the canvas floating on their screen position.
+Let's add an info label right next to our simple box that shows some info about the airport when hovered:
+
+```typescript jsx
+  {hover ? (
+    <Html position-y={EARTH_SURFACE_ELEVATION}>
+      <div className="info-bubble">
+        <div>[{props.airport.city}]</div>
+        <div>{props.airport.id}</div>
+        <div>
+          ({props.airport.latitude};{props.airport.longitude})
+        </div>
+        <a href={`https://en.wikipedia.org/wiki/${props.airport.city}`}>wikipedia</a>
+      </div>
+    </Html>
+  ) : null}
+```
+
+Lastly, if you want to make it a bit more interesting, add a light to the city to show where they are:
+```typescript jsx
+      <Sphere
+        position={LIGHT_POSITION}
+        baseColor={hover ? 'limegreen' : 'red'}
+      />
+      <pointLight
+        ref={lightRef}
+        color={hover ? 'limegreen' : 'red'}
+        position={LIGHT_POSITION}
+      />
+```
+
+and you can drive this with some animation:
+```typescript jsx
+  useFrame((state, delta) => {
+  if(lightRef.current) {
+    const blinkPeriod = 3;
+    const phase = (state.clock.elapsedTime % blinkPeriod)/blinkPeriod;
+    lightRef.current.intensity = Math.sin(phase * Math.PI *2) * 0.5 + 0.5;
+  }
+});
+```
