@@ -170,3 +170,60 @@ Let's try this for rotating our airplane:
 We can abstract the sun similarly to an object in the scene that takes care of it's orbit, 
 even add a visible model to show where the sun currently is.
 
+### Step 4 - Budapest - Sydney!
+
+Let's step up our game a notch. Let's include exact positions on the planet, and let's set up chartered flights between two points.
+For example, between Budapest and Sydney.
+It will require two things: associate our known geolocations with rotation quaternions, and moving the plane between these two.
+Well - since we already know how to interpolate quaternions, we only need to figure out the first one! Let's get on it! 
+
+Oh, maybe one more thing. Let's load some data! 
+We can use the generator to generate some data:
+```typescript jsx
+yarn generate-data
+```
+
+Then we can load this data in `FlightsScene.tsx` with `useEffect` (pay attention to the dependencies, not to re-run it) - and find Sydney and Budapest.
+
+Now - calculating the rotation quaternion from the cities are not that difficult, once you know you can multiply quaternions, you'll basically need to rotate the containing box of the aircraft with the right latitude and longitude amounts.
+Lucky for you, you can save this work by using the `rotationQuaternionForCoordinates` function from the utilities we provide for you.
+
+Pass the cities to the flights, and let's see if the flights appear on the map:
+```typescript jsx
+// Pass the filtered city data to the flights:
+  <Flight city={budapest!} />
+  <Flight city={sydney!} />
+  
+// And in the flight:
+if (rotationBoxRef.current){
+  const q = rotationQuaternionForCoordinates(city.latitude, city.longitude);
+  rotationBoxRef.current?.setRotationFromQuaternion(q);
+}
+
+```
+
+It's this easy, you ask? 
+Well, sort of... (long detailed part about world coordinates and how orienting the flight might not be that easy);
+
+Now, we can try to move the flights between the two cities:
+
+```typescript jsx
+  useFrame((state, delta) => {
+    const startQuaternion = rotationQuaternionForCoordinates(from.latitude, from.longitude);
+    const endQuaternion = rotationQuaternionForCoordinates(to.latitude, to.longitude);
+
+
+    if (rotationBoxRef.current && flightContainerRef.current) {
+      const flightTime = 4;
+      const phase = (state.clock.elapsedTime % flightTime) / flightTime;
+      const worldPositionBefore = flightContainerRef.current.getWorldPosition(new Vector3());
+
+      const rotationQuaternion = new Quaternion();
+      rotationQuaternion.slerpQuaternions(startQuaternion, endQuaternion, phase);
+      rotationBoxRef.current.setRotationFromQuaternion(rotationQuaternion);
+
+      flightContainerRef.current.lookAt(worldPositionBefore);
+      flightContainerRef.current.rotation.z = 0;
+    }
+  });
+```
