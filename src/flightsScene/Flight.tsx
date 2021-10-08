@@ -13,12 +13,12 @@ import { degToRad } from 'three/src/math/MathUtils';
 type FlightProperties = {
   from: IAirport;
   to: IAirport;
-  flightDescriptor: IFlight;
+  flight: IFlight;
   onFlightClicked: (flight: IFlight, event: ThreeEvent<MouseEvent>) => void;
   selected: boolean;
 };
 
-export function Flight({ from, to }: { from: IAirport; to: IAirport }) {
+export function Flight({ from, to, flight, selected, onFlightClicked }: FlightProperties) {
   const rotationBoxRef = useRef<Group>();
   const flightContainerRef = useRef<Group>();
 
@@ -45,7 +45,7 @@ export function Flight({ from, to }: { from: IAirport; to: IAirport }) {
     <group ref={rotationBoxRef}>
       <group ref={flightContainerRef} position-y={GLOBE_BASE_RADIUS * GLOBE_SCALE + FLOAT_HEIGHT}>
         {/* ^ This box is a convenience because it's hard to forward ref to inside the airplane */}
-        <Airplane />
+        <Airplane selected={selected} onClick={(event) => onFlightClicked(flight, event)} />
       </group>
     </group>
   );

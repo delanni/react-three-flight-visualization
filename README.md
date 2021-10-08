@@ -28,6 +28,7 @@ Disclaimer: We know that the universe is not geocentric, but for our purposes an
 <insert final demo link>
 
 ## Steps to build a basic flight visualization app
+Note: This guide doesn't contain all the required code changes. You might need to improvise/bridge between steps, I am not detailing every change, however this git repository contains the incremental changes in different commits!
 
 ### Step 0 - Preparations done by us
 Create react app
@@ -345,7 +346,7 @@ Lastly, if you want to make it a bit more interesting, add a light to the city t
 
 and you can drive this with some animation:
 ```typescript jsx
-  useFrame((state, delta) => {
+useFrame((state, delta) => {
   if(lightRef.current) {
     const blinkPeriod = 3;
     const phase = (state.clock.elapsedTime % blinkPeriod)/blinkPeriod;
@@ -353,3 +354,89 @@ and you can drive this with some animation:
   }
 });
 ```
+
+### Step 7 - Filtering and selecting flights
+Here comes a big one!
+Since this is react, we can use our already familiar ways to filter/sort/select/interact with data.
+
+The workshop tries to focus on the react+threejs marriage, we'll save you the time of having to write a fancy-fancy filtering UI, that 
+will allow very basic listing/interaction with the flights data - you can use `FlightFilterControls` for listing the flights.
+
+Keep in mind, the gateway to the magical 3D world is the `<Canvas>` tag within which, only `@react-three/fiber`'s components are valid. 
+We'll want to use conventional html elements to visualize the data control panels. For this we'll have to lift out the data to the App's level:
+
+```typescript jsx
+// in FlightVisualizationApp.tsx
+    <FlightsScene 
+        flightsList={flightsList}
+        airportsList={airportsList}
+        airportsMap={airportsMap}
+    />
+```
+
+Now we can tuck this data in to a component next to `<Canvas>` outside of its context.
+
+```typescript jsx
+<aside className="controlPanel">
+  <FlightFilterControls
+    flights={flightsList}
+    airports={airportsList}
+    airportMap={airportsMap}
+    maxFlightCount={20}
+    simulationTime={1633708659640}
+    selectedFlight={selectedFlight}
+    setSelectedFlight={setSelectedFlight}
+    onFilteringChanged={setFilteredFlights}
+  />
+</aside>
+```
+
+If you wire in everything right - you should be able to filter flights, and visualize them on the map.
+
+Let's also switch out the fix 20 limitation on the flight number to something that's controlled by another pre-made control:
+
+```typescript jsx
+const [maxFlightCount, setMaxFlightCount] = useState(20);
+
+<div className="input-controls">
+  <div>Current date: {prettyDate(new Date(date))}</div>
+  <SimulationSizeControl onMaxFlightCountChange={setMaxFlightCount} />
+</div>
+```
+
+If the wiring is right once again, then the slider should limit/unlimit the amount of rendered flights! Go nuts!
+
+...
+
+And I promised selection too! So let's get to it.
+
+We already know that THREEJS objects support `onPointerOver` events - well, so do they support `onClick`. 
+We can add this `onClick` handler to our inside the `Flight` object's `Plane` model. 
+Let's implement a selected state and wire the selection event through with setters that we define outside in the common scope.
+
+```typescript jsx
+// in FlightVisualizationApp.tsx
+<FlightsScene
+  flightsList={filteredFlights}
+  airportsList={airportsList}
+  airportsMap={airportsMap}
+  selectedFlight={selectedFlight}
+  setSelectedFlight={setSelectedFlight}
+/>
+
+// in FlightsScene.tsx
+const selected = selectedFlight?.id === flight.id;
+// return 
+<Flight
+  key={flight.id}
+  flight={flight}
+  from={from}
+  to={to}
+  selected={selected}
+  onFlightClicked={() => setSelectedFlight(flight)}
+/>
+
+// in Plane.tsx
+<Airplane selected={selected} onClick={(event) => onFlightClicked(flight, event)} />
+```
+
