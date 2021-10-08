@@ -23,6 +23,8 @@ This document contains some directions and context around the workshop material.
 Demonstrate building applications that use 3D rendering through a react-ish interface.
 The end-product we're going to build is an app that visualizes some flight data (generated, but may as well fetch real data).
 
+Disclaimer: We know that the universe is not geocentric, but for our purposes and visibility, this is easier to depict.
+
 <insert final demo link>
 
 ## Steps to build a basic flight visualization app
@@ -101,3 +103,70 @@ Let's fix the light orbiting the globe.
 
 Let's place the plane model as well, and try to fix its scale and orientation.
 (Maybe demonstrate the configurator component)
+
+### Step 3 - Let's fly around the globe
+This section will contain some maths that we tried to keep to the minimum, not to disturb the flow of the workshop.
+
+For the application code not to get too crowded, it is useful to introduce some layers of abstraction. 
+I'd introcude one that separates the model of a plane from a flight that is supposed to fly between two cities:
+ - The plane model bears the responsibility of drawing a plane straight, towards the -Z axis
+ - The flight is representing one of these plane models in flight (taking care of movement)
+
+Let's create a new file `Flight.tsx` close to the `FlightsScene.tsx`.
+
+```typescript jsx
+// We'll basically need this in a component:
+const rotationBoxRef = useRef<Group>();
+const flightContainerRef = useRef<Group>();
+return (
+<group ref={rotationBoxRef}>
+  <group ref={flightContainerRef} position-y={GLOBE_BASE_RADIUS * GLOBE_SCALE + FLOAT_HEIGHT}>
+    {/* ^ This box is a convenience because it's hard to forward ref to inside the airplane */}
+    <Airplane scale={PLANE_SCALE} />
+  </group>
+</group>
+)
+```
+
+After this, the flight should appear on top of the world, around the north pole.
+
+If you're brave, you can try to use your own 3D maths, since there's a dozen ways of position/rotate the flight - I'll show you one, that's pretty convenient.
+
+The rotation can be done with rotating the object over time:
+```typescript jsx
+  useFrame((state, delta) => {
+    if (rotationBoxRef.current) {
+      const angle = Math.PI * 2 / 4 * delta;
+      rotationBoxRef.current.rotateOnAxis(LEFT, angle);
+    }
+  });
+```
+
+The small issue with this method, is that it's harder to calculate increments between steps to get to a correct end state.
+
+Another method is called interpolation. Interpolation in general is taking the start and end states, and calculate steps in-between, using a phase indicator.
+Let's try this for rotating our airplane:
+
+```typescript jsx
+  useFrame((state, delta) => {
+    const startQuaternion = new Quaternion().setFromAxisAngle(LEFT, 0)
+    const midQuaternion = new Quaternion().setFromAxisAngle(LEFT, Math.PI)
+    const endQuaternion = new Quaternion().setFromAxisAngle(LEFT, Math.PI * 2)
+    if (rotationBoxRef.current) {
+      const phase = (state.clock.elapsedTime % 3) / 3;
+
+      const rotationQuaternion = new Quaternion();
+      if (phase < 0.5) { // because of rotation optimization
+        rotationQuaternion.slerpQuaternions(startQuaternion, midQuaternion, phase * 2);
+      } else {
+        rotationQuaternion.slerpQuaternions(midQuaternion, endQuaternion, (phase - 0.5) * 2);
+      }
+      
+      rotationBoxRef.current.setRotationFromQuaternion(rotationQuaternion);
+    }
+  });
+```
+
+We can abstract the sun similarly to an object in the scene that takes care of it's orbit, 
+even add a visible model to show where the sun currently is.
+
