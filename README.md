@@ -227,3 +227,51 @@ Now, we can try to move the flights between the two cities:
     }
   });
 ```
+
+
+### Step 5 - Let there be (f)light(s)!
+
+In this step, we'll make use of the generated flight data, and visualize a LOT of flights at the same time, now that we know how to!
+
+Let's load both data sources, and extract the interesting bits of them:
+```typescript jsx
+  useEffect(() => {
+  fetch('/data/airports.json', {})
+    .then((airportsResponse) => airportsResponse.json())
+    .then((airportsJson: IAirport[]) => {
+      const airportsMap = indexBy(e=>e.id, airportsJson);
+
+      setAirportsMap(airportsMap);
+      setAirportList(airportsJson);
+    });
+}, []);
+
+useEffect(() => {
+  fetch('/data/flights.json', {})
+    .then((flightsResponse) => flightsResponse.json())
+    .then((flightsJson) => flightsJson.map(parseFlightDates))
+    .then((flightsJson: IFlight[]) => setFlightsList(flightsJson));
+}, []);
+```
+
+Let's limit the number of flights rendered, and use a react-like array expansion to show all the flights:
+```typescript jsx
+  const renderedFlights = flightsList.slice(0, 10);
+
+  return (
+    <>
+      <OrbitControls />
+      <Sun />
+      <Globe />
+      {renderedFlights.map((flight) => {
+        const from = airportsMap[flight.departureAirportId];
+        const to = airportsMap[flight.arrivalAirportId];
+        return <Flight key={flight.id} from={from} to={to} />;
+      })}
+    </>
+  )
+```
+
+And there you have it! You now have a bunch of chartered flights going from cities to other cities!
+
+

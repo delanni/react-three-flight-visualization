@@ -3,6 +3,7 @@ import { Quaternion, Vector3 } from 'three';
 import { memoizeWith } from 'ramda';
 import { LEFT, UP } from './constants';
 import { degToRad } from 'three/src/math/MathUtils';
+import { IFlight } from './types';
 
 export function Box(
   props: React.PropsWithChildren<{
@@ -48,3 +49,35 @@ export const prettyDate = memoizeWith(
 );
 
 export const getMinutes = (timestamp: number) => Math.floor(timestamp / 60000);
+
+export function parseFlightDates(flight: any): IFlight {
+  return {
+    ...flight,
+    departureTime: new Date(flight.departureTime),
+    arrivalTime: new Date(flight.arrivalTime),
+  };
+}
+
+export const getRotationForDirection = memoizeWith(
+  (from, to) => `${from.latitude},${from.longitude};${to.latitude},${to.longitude}`,
+  (from: { latitude: number; longitude: number }, to: { latitude: number; longitude: number }) => {
+    const latitudeSign = Math.sign(to.latitude - from.latitude);
+    const longitudeSign = Math.sign(to.longitude - from.longitude);
+    const latLongSignature = `${latitudeSign};${longitudeSign}`;
+
+    const base = Math.PI;
+    let rotation =
+      {
+        '1;1': base + Math.PI,
+        '-1;1': base,
+        '-1;-1': base,
+        '1;-1': base + Math.PI,
+      }[latLongSignature] || base;
+
+    if (Math.abs(to.latitude - from.latitude) < 1) {
+      rotation += Math.PI / 2;
+    }
+
+    return rotation;
+  }
+);
