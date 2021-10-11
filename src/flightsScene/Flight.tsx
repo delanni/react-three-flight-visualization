@@ -8,7 +8,6 @@ import { GLOBE_BASE_RADIUS } from '../models/Globe';
 
 import { IAirport, IFlight } from '../types';
 import { getRotationForDirection, rotationQuaternionForCoordinates } from '../Utilities';
-import { degToRad } from 'three/src/math/MathUtils';
 
 type FlightProperties = {
   from: IAirport;
@@ -23,12 +22,12 @@ export function Flight({ from, to, flight, selected, onFlightClicked }: FlightPr
   const flightContainerRef = useRef<Group>();
 
   useFrame((state, delta) => {
+    const globalWorldTime: number = (state.clock as any).hackedWorldTime;
     const startQuaternion = rotationQuaternionForCoordinates(from.latitude, from.longitude);
     const endQuaternion = rotationQuaternionForCoordinates(to.latitude, to.longitude);
 
     if (rotationBoxRef.current && flightContainerRef.current) {
-      const flightTime = 4;
-      const phase = (state.clock.elapsedTime % flightTime) / flightTime;
+      const phase = calculatePhase(Number(flight.departureTime), Number(flight.arrivalTime), globalWorldTime);
       const worldPositionBefore = flightContainerRef.current.getWorldPosition(new Vector3());
 
       const rotationQuaternion = new Quaternion();
@@ -49,4 +48,19 @@ export function Flight({ from, to, flight, selected, onFlightClicked }: FlightPr
       </group>
     </group>
   );
+}
+
+function calculatePhase(
+  startTimestamp: number,
+  endTimestamp: number,
+  currentTimestamp: number,
+  shouldLimit: boolean = true
+) {
+  const fullRange = endTimestamp - startTimestamp;
+  const currentProgress = currentTimestamp - startTimestamp;
+  if (shouldLimit) {
+    return Math.min(1, Math.max(0, currentProgress / fullRange));
+  } else {
+    return currentProgress / fullRange;
+  }
 }

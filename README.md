@@ -27,6 +27,9 @@ Disclaimer: We know that the universe is not geocentric, but for our purposes an
 
 <insert final demo link>
 
+## Operational details
+
+
 ## Steps to build a basic flight visualization app
 Note: This guide doesn't contain all the required code changes. You might need to improvise/bridge between steps, I am not detailing every change, however this git repository contains the incremental changes in different commits!
 
@@ -480,7 +483,55 @@ _Note: I named it "hacked" because it feels a bit outside of the suggested limit
 !But! Since we can only use this hook within the `<Canvas>` context, we will need to sneak some updates outside to the control panel (so we can use that for showing the time, and filtering "current" flights).
 Let's inject a `onSimulationMinuteTick` into the scene, and use that to bubble up some updates at least once a minute in the simulation.
 
+Now that we have access to the global world time in whichever `useFrame`, we can simply re-write our phase to be based on the global time and how it relates to the flight's departure/arrival times:
+```typescript jsx
+      const phase = calculatePhase(
+        Number(flight.departureTime),
+        Number(flight.arrivalTime),
+        globalWorldTime
+      );
 
+// where:
+function calculatePhase(startTimestamp: number, endTimestamp: number, currentTimestamp: number, shouldLimit: boolean = true) {
+  const fullRange = endTimestamp - startTimestamp;
+  const currentProgress = currentTimestamp - startTimestamp;
+  if (shouldLimit) {
+    return Math.min(1, Math.max(0, currentProgress / fullRange));
+  } else {
+    return currentProgress / fullRange;
+  }
+}
+```
 
-<use time in flight path>
-<use time in planet orbit>
+Boom! Flights are now accurately following flight times between the destination cities. You can use these principles for any strictly-timed animation. Otherwise, use `react-spring`.
+
+While we're here, let's correct, and make the sun's orbit a bit more realistic using the same method:
+
+Our `useFrame` will look like this for the sun:
+```typescript jsx
+  useFrame((state, delta) => {
+    const time = (state.clock as any).hackedWorldTime;
+    const phase = (time % ORBIT_PERIOD_24H) / ORBIT_PERIOD_24H;
+    const phaseRadians = Math.PI * 2 * phase + Math.PI;
+
+    if (ref.current) {
+      const x = Math.sin(phaseRadians) * ORBIT_DISTANCE;
+      const z = Math.cos(phaseRadians) * ORBIT_DISTANCE;
+      ref.current.position.set(x, 0, z);
+    }
+  });
+```
+
+And this concludes the main points we wanted to cover. We can do further fine-tuning, if we have time. Some ideas are:
+
+ - On-click flight information, similar to the city information bubbles + Highlight origin/destination for selected flights
+ - Prettier flight paths & scale-to-disappear for flights. Maybe spring-like animations for a comic-y feel
+ - Different camera setups - for example: flight POV
+ - Use cooler models :) 
+ - Improve performance through instancing
+ - Improve the lighting setup (directional lights instead of point-lights)
+ - Better filtering options
+
+**You can get a lot more ideas of what's possible with react-three in here**: https://docs.pmnd.rs/react-three-fiber/getting-started/examples
+
+Thanks for joining us!
