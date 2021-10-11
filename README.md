@@ -440,3 +440,47 @@ const selected = selectedFlight?.id === flight.id;
 <Airplane selected={selected} onClick={(event) => onFlightClicked(flight, event)} />
 ```
 
+### Step 8 - Global time
+This one is a difficult one, but it's really worth the effort.
+We're going to implement a global simulation time that's inherently driving the whole simulation. 
+Yes, everything is already moving, yes, we're already using the `state.clock.elapsedTime` variable, but it just doesn't line up with the time of the flights.
+(Plus this section shows a nifty trick that you might need in your own simulations too).
+
+The speciality of this simulation timer is that we can change the speed of the simulation on a controller, and the world would react accordingly.
+This would not be difficult in a pure three.js world, but it's a bit more difficult with all the `react` world where updating some state is very costly (`setState/useState` calls, or re-renders with `ReactContext`).
+
+So let's start!
+
+```typescript jsx
+// We can use this SimulationSpeedControl - that's pre-written for some simple speed control:
+<SimulationSpeedControl onSimulationSpeedChange={setSimSpeed} />
+```
+
+Once we sneak this variable inside the magic gates of the 3D context, we can start summarizing the `useFrame`'s deltas, that we scale with the simulation speed.
+```typescript jsx
+  useFrame((state, delta) => {
+    const clock = state.clock as any;
+    const worldTimeMs = clock.hackedWorldTime || Date.now();
+    const worldTimeAfterTick = worldTimeMs + Math.floor(delta * 1000 * simulationSpeed);
+    clock.hackedWorldTime = worldTimeAfterTick;
+
+    if (getMinutes(worldTimeMs) !== getMinutes(worldTimeAfterTick)) {
+      props.onSimulationMinuteTick(worldTimeAfterTick);
+    }
+    // There's currently no good way of propagating globally calculated information besides using unsafe javascript and piggybacking on global objects.
+    // The alternatives are setState and contexts, but that's a really big performance hit.
+  });
+```
+
+So what we did above, is we added an unsafe variable (`hackedWorldTime`) piggybacking on the global threejs state object. 
+We can increment this without any cost in this `useFrame` loop, and we can retrieve this variable in other `useFrame`s.
+
+_Note: I named it "hacked" because it feels a bit outside of the suggested limits of what the react-three world would normally allow us to do, especially with typescript being so strict along the way._
+
+!But! Since we can only use this hook within the `<Canvas>` context, we will need to sneak some updates outside to the control panel (so we can use that for showing the time, and filtering "current" flights).
+Let's inject a `onSimulationMinuteTick` into the scene, and use that to bubble up some updates at least once a minute in the simulation.
+
+
+
+<use time in flight path>
+<use time in planet orbit>
