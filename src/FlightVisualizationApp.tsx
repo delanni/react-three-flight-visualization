@@ -5,9 +5,11 @@ import { Canvas } from '@react-three/fiber';
 import FlightsScene from './flightsScene/FlightsScene';
 import { Dictionary, IAirport, IFlight } from './types';
 import { indexBy } from 'ramda';
-import { parseFlightDates, prettyDate } from './Utilities';
+import { prettyDate } from './Utilities';
 import { FlightFilterControls } from './components/FilterControls';
 import { SimulationSizeControl, SimulationSpeedControl } from './components/SimulationControls';
+import { airports } from './airportsData';
+import { generateFlightsAtRuntime } from './flightGenerator';
 
 const date = Date.now();
 
@@ -17,21 +19,14 @@ function FlightVisualizationApp() {
   const [airportsList, setAirportList] = useState<IAirport[]>([]);
 
   useEffect(() => {
-    fetch('/data/airports.json', {})
-      .then((airportsResponse) => airportsResponse.json())
-      .then((airportsJson: IAirport[]) => {
-        const airportsMap = indexBy((e) => e.id, airportsJson);
+    // Use static airport data
+    const airportsMap = indexBy((e) => e.id, airports);
+    setAirportsMap(airportsMap);
+    setAirportList(airports);
 
-        setAirportsMap(airportsMap);
-        setAirportList(airportsJson);
-      });
-  }, []);
-
-  useEffect(() => {
-    fetch('/data/flights.json', {})
-      .then((flightsResponse) => flightsResponse.json())
-      .then((flightsJson) => flightsJson.map(parseFlightDates))
-      .then((flightsJson: IFlight[]) => setFlightsList(flightsJson));
+    // Generate ~200 flights at runtime with departure times relative to page load
+    const generatedFlights = generateFlightsAtRuntime(airports, 200, Date.now());
+    setFlightsList(generatedFlights);
   }, []);
 
   const [selectedFlight, setSelectedFlight] = useState<IFlight | null>(null);
